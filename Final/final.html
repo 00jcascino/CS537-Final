@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<title> Collect Fish With Happy </title>
+<head>
+<script id="vertex-shader1" type="x-shader/x-vertex">
+
+    varying vec3 N, L, E;
+
+    attribute vec4 vPosition;
+    attribute vec3 normals;
+    attribute vec2 texture_coords;
+
+    uniform float theta;
+    uniform float yLevel;
+    uniform vec2 happyPos;
+    uniform vec4 lightPosition;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+
+    varying vec4 fColor;
+    varying vec2 fTexCoord;
+    varying vec3 fNorms;
+
+    void main()
+    {
+        float angle = radians( theta );
+        float c = cos( angle );
+        float s = sin( angle );
+
+        mat4 ry = mat4( c, 0.0, -s, 0.0,
+        0.0, 1.0,  0.0, 0.0,
+        s, 0.0,  c, 0.0,
+        0.0, 0.0,  0.0, 1.0 );
+
+        mat4 scale = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0 );
+
+        mat4 mpos = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        happyPos.x, yLevel, happyPos.y, 1.0 );
+
+        mat3 ry3 = mat3( c, 0.0, -s,
+        0.0, 1.0,  0.0,
+        s, 0.0,  c);
+
+        vec3 light;
+        vec3 pos = (modelViewMatrix*mpos*ry*vPosition).xyz;
+        if(lightPosition.w == 0.0)  L = normalize(lightPosition.xyz);
+        else  L = normalize(lightPosition.xyz - pos);
+
+        E =  -normalize(pos);
+        N = normalize( normalMatrix*ry3*normals.xyz);
+        gl_Position =  projectionMatrix*modelViewMatrix*scale*mpos*ry*vPosition;
+        fColor = vec4(0.0, 1.0, 0.0, 1.0);
+        fTexCoord = texture_coords;
+        fNorms = normals;
+
+    }
+</script>
+
+<script id="fragment-shader1" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform sampler2D texture;
+    uniform float shininess;
+    uniform vec4 lightAmbient;
+    uniform vec4 lightDiffuse;
+    uniform vec4 lightSpecular;
+
+    varying vec2 fTexCoord;
+    varying vec3 fNorms;
+    varying vec4 fColor;
+    varying vec3 N, L, E;
+
+    vec4 blend (vec4 a, float b,float step){
+        b = max(smoothstep(0.0,0.2,b)-.1, 0.0);
+        if (b <= 0.5){
+            return lightAmbient + 2.0*a*b +a*a*(1.0-2.0*b);
+        }
+        else {
+            return 2.0*a*(1.0-b)+sqrt(a)*(2.0*b-1.0);
+        }
+    }
+
+    vec4 step (vec4 a, float b,float step){
+        if (b < step){
+            return a*b;
+        }
+        else {
+            return a;
+        }
+    }
+
+    void main()
+    {
+        vec4 fColor;
+
+        vec3 H = normalize( L + E );
+
+        float Kd = max(dot(L, N), 0.0);
+        vec4  diffuse = blend(lightDiffuse*texture2D( texture, fTexCoord ),Kd,0.05);
+
+        float Ks = pow( max(dot(N, H), 0.0), 100.0 );
+        vec4  specular = step(lightSpecular*.3,Ks,0.4);
+
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+
+        fColor = diffuse + specular;
+
+        gl_FragColor = fColor;
+    }
+</script>
+
+<script id="vertex-shader2" type="x-shader/x-vertex">
+    varying vec3 fNorms;
+
+    varying vec3 N, L, E;
+
+    attribute vec4 vPosition;
+    attribute vec3 normals;
+
+    uniform float theta;
+    uniform vec2 happyPos;
+    uniform vec4 lightPosition;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+    uniform vec4 color;
+
+    varying vec4 fColor;
+
+    void main()
+    {
+        float angle = radians( theta );
+        float c = cos( angle );
+        float s = sin( angle );
+
+        mat4 ry = mat4( c, 0.0, -s, 0.0,
+        0.0, 1.0,  0.0, 0.0,
+        s, 0.0,  c, 0.0,
+        0.0, 0.0,  0.0, 1.0 );
+
+        mat4 scale = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0 );
+
+        mat4 mpos = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        happyPos.x, 0.0, happyPos.y, 1.0 );
+
+        mat3 ry3 = mat3( c, 0.0, -s,
+        0.0, 1.0,  0.0,
+        s, 0.0,  c);
+
+        vec3 light;
+        vec3 pos = (modelViewMatrix*scale*mpos*ry*vPosition).xyz;
+        if(lightPosition.w == 0.0)  L = normalize(lightPosition.xyz);
+        else  L = normalize(lightPosition).xyz - pos;
+
+        E =  -normalize(pos);
+        N = normalize( normalMatrix*ry3*normals.xyz);
+        gl_Position =  projectionMatrix*modelViewMatrix*scale*mpos*ry*vPosition;
+        fColor = color;
+        fNorms = normals;
+    }
+</script>
+
+<script id="fragment-shader2" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform float shininess;
+    uniform vec4 lightAmbient;
+    uniform vec4 lightDiffuse;
+    uniform vec4 lightSpecular;
+
+    varying vec3 fNorms;
+    varying vec4 fColor;
+    varying vec3 N, L, E;
+
+    vec4 blend (vec4 a, float k,float step){
+        float b = max(smoothstep(0.0,0.1,k)-.1, 0.0);
+        if (b <= 0.01){
+            return lightAmbient + (1.0 - a) * a*b + a * (1.0 - (1.0 - a) * (1.0 - b));
+        }
+        else {
+            return (1.0 - a) * a*b + a * (1.0 - (1.0 - a) * (1.0 - b));
+        }
+    }
+
+    vec4 step (vec4 a, float b,float step){
+        if (b < step){
+            return a*b;
+        }
+        else {
+            return a;
+        }
+    }
+
+    void main()
+    {
+
+        vec4 color;
+
+        vec3 H = normalize( L + E );
+
+        float Kd = max(dot(L, N), 0.0);
+        vec4  diffuse = blend(fColor,Kd,0.05);
+
+        float Ks = pow( max(dot(N, H), 0.0), 100.0 );
+        vec4  specular = step(lightSpecular*.3,Ks,0.6);
+
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+
+        color = diffuse + specular;
+        color.a = fColor.a;
+
+        gl_FragColor = color;
+    }
+</script>
+
+<script id="vertex-shader3" type="x-shader/x-vertex">
+    varying vec3 fNorms;
+
+    varying vec3 N, L, E;
+
+    attribute vec4 vPosition;
+    attribute vec3 normals;
+
+    uniform float theta;
+    uniform vec2 happyPos;
+    uniform vec4 lightPosition;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 normalMatrix;
+    uniform vec4 color;
+
+    varying vec4 fColor;
+
+    void main()
+    {
+        float angle = radians( theta );
+        float c = cos( angle );
+        float s = sin( angle );
+
+        mat4 ry = mat4( c, 0.0, -s, 0.0,
+        0.0, 1.0,  0.0, 0.0,
+        s, 0.0,  c, 0.0,
+        0.0, 0.0,  0.0, 1.0 );
+
+        mat4 scale = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0 );
+
+        mat4 mpos = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        happyPos.x, 0.0, happyPos.y, 1.0 );
+
+        mat4 mh = mat4( 1.0, 0.0, 0.0, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.02, 0.0, 1.0 );
+
+        gl_Position =  projectionMatrix*mh*modelViewMatrix*scale*mpos*ry*vPosition;
+        fColor = color;
+        fNorms = normals;
+    }
+</script>
+
+<script id="fragment-shader3" type="x-shader/x-fragment">
+    precision mediump float;
+
+    uniform float shininess;
+    uniform vec4 lightAmbient;
+    uniform vec4 lightDiffuse;
+    uniform vec4 lightSpecular;
+
+    varying vec3 fNorms;
+    varying vec4 fColor;
+    varying vec3 N, L, E;
+
+    vec4 blend (vec4 a, float k,float step){
+        float b = max(smoothstep(0.0,0.1,k)-.1, 0.0);
+        if (b <= 0.01){
+            return lightAmbient + (1.0 - a) * a*b + a * (1.0 - (1.0 - a) * (1.0 - b));
+        }
+        else {
+            return (1.0 - a) * a*b + a * (1.0 - (1.0 - a) * (1.0 - b));
+        }
+    }
+
+    vec4 step (vec4 a, float b,float step){
+        if (b < step){
+            return a*b;
+        }
+        else {
+            return a;
+        }
+    }
+
+    void main()
+    {
+        gl_FragColor = fColor;
+    }
+</script>
+
+<script type="text/javascript" src="../Common/webgl-utils.js"></script>
+<script type="text/javascript" src="../Common/initShaders.js"></script>
+<script type="text/javascript" src="../Common/MV.js"></script>
+<script type="text/javascript" src="objLoader.js"></script>
+<script type="text/javascript" src="happyData/idle/happy.js"></script>
+<script type="text/javascript" src="happyData/idle/outline.js"></script>
+<script type="text/javascript" src="happyData/idle/features.js"></script>
+<script type="text/javascript" src="happyData/idle/eyes.js"></script>
+<script type="text/javascript" src="happyData/idle/bag.js"></script>
+<script type="text/javascript" src="happyData/run/happy_run.js"></script>
+<script type="text/javascript" src="happyData/run/outline_run.js"></script>
+<script type="text/javascript" src="happyData/run/features_run.js"></script>
+<script type="text/javascript" src="happyData/run/eyes_run.js"></script>
+<script type="text/javascript" src="happyData/run/bag_run.js"></script>
+<script type="text/javascript" src="final.js"></script>
+</head>
+
+<body>
+  <div id="fish"></div>
+  <style>
+  html, body {
+   margin: 0;
+   height: 100%;
+   width: 100%;
+  }
+  .wrapper {
+    padding: 10px;
+    background: white;
+    max-width: 100%;
+    height: calc(100vh - 16px);
+  }
+  #fish {
+    max-width: 200px;
+    max-height: 30px;
+    padding-left: 10%;
+    font-family: cursive;
+    background-image: linear-gradient(to left, violet, indigo, blue, cyan);   -webkit-background-clip: text;
+    color: transparent;
+  }
+  #gl-canvas {
+   width: 80%;
+   padding-bottom: 56.25%;
+   padding-left: 10%;
+  }
+  </style>
+  <div class="wrapper">
+    <canvas id="gl-canvas" width=1600 height=900>
+      Oops ... your browser doesn't support the HTML5 canvas element
+    </canvas>
+  </div>
+
+<img id = "texImage" src = "happyDiffuse.png" hidden></img>
+<img id = "texImage2" src = "bag.png" hidden></img>
+<img id = "texImage3" src = "fish.png" hidden></img>
+<img id = "texImage4" src = "checkered.png" hidden></img>
+
+</body>
+</html>
